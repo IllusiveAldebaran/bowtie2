@@ -19,12 +19,21 @@
 
 #ifndef BT2_SEARCH_H_
 #define BT2_SEARCH_H_
-class multiseedSearchWorker {
+class multiseedSearchWorkerUnpaired {
 	int tid;
 
 public:
-	multiseedSearchWorker(const multiseedSearchWorker& W): tid(W.tid) {};
-	multiseedSearchWorker(int id):tid(id) {};
+	multiseedSearchWorkerUnpaired(const multiseedSearchWorkerUnpaired& W): tid(W.tid) {};
+	multiseedSearchWorkerUnpaired(int id):tid(id) {};
+	void operator()() const;
+};
+
+class multiseedSearchWorkerPaired {
+	int tid;
+
+public:
+	multiseedSearchWorkerPaired(const multiseedSearchWorkerPaired& W): tid(W.tid) {};
+	multiseedSearchWorkerPaired(int id):tid(id) {};
 	void operator()() const;
 };
 
