@@ -3076,20 +3076,25 @@ static void multiseedSearchWorkerUnpaired(void *vp) {
 		// Used by thread with threadid == 1 to measure time elapsed
 		time_t iTime = time(0);
 
+		// Unpaired function. bool exists for compatibility with functions that take in t/f for paired
+		bool paired = false;
 		// Keep track of whether last search was exhaustive for mates 1 and 2
 		bool exhaustive[2] = { false, false };
 		// Keep track of whether mates 1/2 were filtered out last time through
 		bool filt   = true;
 		// Keep track of whether mates 1/2 were filtered out due Ns last time
-		bool nfilt[2]   = { true, true };
+		bool nfilt  = true;
 		// Keep track of whether mates 1/2 were filtered out due to not having
 		// enough characters to rise about the score threshold.
-		bool scfilt[2]  = { true, true };
+		bool scfilt = true;
 		// Keep track of whether mates 1/2 were filtered out due to not having
 		// more characters than the number of mismatches permitted in a seed.
-		bool lenfilt[2] = { true, true };
+		bool lenfilt = true;
 		// Keep track of whether mates 1/2 were filtered out by upstream qc
-		bool qcfilt[2]  = { true, true };
+		bool qcfilt  = true;
+
+		// bool just kept to allow some function calls expecting an address to work
+		bool tempTrash = true;
 
 		rndArb.init((uint32_t)time(0));
 		int mergei = 0;
@@ -3099,12 +3104,6 @@ static void multiseedSearchWorkerUnpaired(void *vp) {
 		   PatternSourceReadAhead psrah(readahead_factory);
 		   PatternSourcePerThread* const ps = psrah.ptr();
 		   bool firstPS = true;
-
-		   /*
-		   if (seq % 100 == 0) {
-			   std::cout << "Loop seq 100" << std::endl;
-		   }
-		   */
 
                    do {
 			pair<bool, bool> ret = firstPS ? 
@@ -3176,7 +3175,6 @@ static void multiseedSearchWorkerUnpaired(void *vp) {
 					ca.nextRead(); // clear the cache
 					olm.reads++;
 					assert(!ca.aligning());
-					bool paired = false; // what a cheap way to check... shouldn't this just be done way earlier?
 					const size_t rdlen1 = ps->read_a().length();
 					const size_t rdlen2 = 0; // DIFF
 					olm.bases += (rdlen1 + rdlen2);
@@ -3215,8 +3213,6 @@ static void multiseedSearchWorkerUnpaired(void *vp) {
 					}
 
 
-					// REMINDER THAT FILTERS ARE ALL INITIALIZED TO TRUE. Around like 3157
-
 					// N filter; does the read have too many Ns?
 					size_t readns[2] = {0, 0};
 					sc.nFilterPair(
@@ -3224,27 +3220,27 @@ static void multiseedSearchWorkerUnpaired(void *vp) {
 						NULL,
 						readns[0],
 						readns[1],
-						nfilt[0],
-						nfilt[1]);
+						nfilt,
+						tempTrash); // TODO: Follow this function for unpaired.
 					// Score filter; does the read enough character to rise above
 					// the score threshold?
-					scfilt[0] = sc.scoreFilter(minsc[0], rdlens[0]);
-					scfilt[1] = sc.scoreFilter(minsc[1], rdlens[1]); // propagation of paired value... means scfilt[1]=0 if not paired
-					lenfilt[0] = lenfilt[1] = true;
+					scfilt = sc.scoreFilter(minsc[0], rdlens[0]);
+					//scfilt[1] = sc.scoreFilter(minsc[1], rdlens[1]); // propagation of paired value... means scfilt[1]=0 if not paired
+					lenfilt = true;
 					if(rdlens[0] <= (size_t)multiseedMms || rdlens[0] < 2) {
 						if(!gQuiet) printMmsSkipMsg(*ps, paired, true, multiseedMms);
-						lenfilt[0] = false;
+						lenfilt = false;
 					}
 					if(rdlens[0] < 2) {
 						if(!gQuiet) printLenSkipMsg(*ps, paired, true);
-						lenfilt[0] = false;
+						lenfilt = false;
 					}
-					qcfilt[0] = qcfilt[1] = true;
+					qcfilt = true;
 					if(qcFilter) {
-						qcfilt[0] = (ps->read_a().filter != '0');
-						qcfilt[1] = (ps->read_b().filter != '0');
+						qcfilt = (ps->read_a().filter != '0');
+						//qcfilt[1] = (ps->read_b().filter != '0');
 					}
-					filt = (nfilt[0] && scfilt[0] && lenfilt[0] && qcfilt[0]);
+					filt = (nfilt && lenfilt && qcfilt);
 					//filt[1] = false; // same thing as before... propagaion of index 1.
 					prm.nFilt += (filt ? 0 : 1) + 1; //bruh, I know they're boolean... but it goes from boolean to numbers? Or is this parsed to true and false? It is parsed into addition you fool. Sorry... okay.. I see. It's an accumulator... interesting... I don't quite follow how these filters act on the code.
 					Read* rds[2] = { &ps->read_a(), &ps->read_b() }; // sometimes I thinkkk why is it called a and b but in our arguments -1 and -2? who knows. not me. I never lost control.
@@ -3602,20 +3598,20 @@ static void multiseedSearchWorkerUnpaired(void *vp) {
 					&shs[1],              // seed results for mate 2
 					exhaustive[0],        // exhausted seed hits for mate 1?
 					exhaustive[1],        // exhausted seed hits for mate 2?
-					nfilt[0],
-					nfilt[1],
-					scfilt[0],
-					scfilt[1],
-					lenfilt[0],
-					lenfilt[1],
-					qcfilt[0],
-					qcfilt[1],
+					nfilt,
+					tempTrash,
+					scfilt,
+					tempTrash,
+					lenfilt,
+					tempTrash,
+					qcfilt,
+					tempTrash,
 					rnd,                  // pseudo-random generator
 					rpm,                  // reporting metrics
 					prm,                  // per-read metrics
 					sc,                   // scoring scheme
-					!seedSumm,            // suppress seed summaries?
-					seedSumm,             // suppress alignments?
+					true,//!seedSumm,            // suppress seed summaries?
+					false,//seedSumm,             // suppress alignments?
 					scUnMapped,           // Consider soft-clipped bases unmapped when calculating TLEN
 					xeq);
 				assert(!retry || msinkwrap.empty());
@@ -3788,6 +3784,7 @@ static void multiseedSearchWorkerPaired(void *vp) {
 		// Used by thread with threadid == 1 to measure time elapsed
 		time_t iTime = time(0);
 
+		bool paired = true; // DOn't remove this because it is used in a few function calls. Kept here for compatibility
 		// Keep track of whether last search was exhaustive for mates 1 and 2
 		bool exhaustive[2] = { false, false };
 		// Keep track of whether mates 1/2 were filtered out last time through
@@ -3882,14 +3879,13 @@ static void multiseedSearchWorkerPaired(void *vp) {
 					current_node = node;
 				}
 #endif
-				bool paired = true; // what a cheap way to check... shouldn't this just be done way earlier?
+						    
 				// Try to align this read
 				while(retry) {
 					retry = false;
 					ca.nextRead(); // clear the cache
 					olm.reads++;
 					assert(!ca.aligning());
-					//bool paired = !ps->read_b().empty(); // what a cheap way to check... shouldn't this just be done way earlier?
 					const size_t rdlen1 = ps->read_a().length();
 					const size_t rdlen2 = ps->read_b().length(); // DIFF
 					olm.bases += (rdlen1 + rdlen2);
