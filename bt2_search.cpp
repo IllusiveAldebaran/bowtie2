@@ -4092,9 +4092,9 @@ static void multiseedSearchWorkerPaired(void *vp) {
 					size_t nUniqueSeedsMS[] = {0, 0, 0, 0};
 					size_t nRepeatSeedsMS[] = {0, 0, 0, 0};
 					size_t seedHitTotMS[] = {0, 0, 0, 0};
-					// TODO: This can be unrolled... I think? nSeedRounds = 2 at the top
 					//for(size_t roundi = 0; roundi < nSeedRounds; roundi++) {
 					{
+						size_t roundi = 0;
 						ca.nextRead(); // Clear cache in preparation for new search
 						shs[0].clearSeeds();
 						shs[1].clearSeeds();
@@ -4106,83 +4106,163 @@ static void multiseedSearchWorkerPaired(void *vp) {
 						//	if(seedlens[0] > 8) seedlens[0]--;
 							//	if(seedlens[1] > 8) seedlens[1]--;
 							//}
-						for(size_t matei = 0; matei < 2; matei++) { // DIFF 
-							size_t mate = matemap[matei];
-								if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
-									// Done with this mate
+						// UNROLL.. but a lot of loops
+						bool check_second_mate = true;
+						//for(size_t matei = 0; matei < 2; matei++) { // DIFF 
+						{
+							size_t mate = matemap[0];
+							if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+								// Done with this mate
 								done[mate] = true;
-								continue;
-							}
-							if(roundi >= nrounds[mate]) {
+								//continue;
+							} else if(roundi >= nrounds[mate] || interval[mate] <= (int)roundi) {
 								// Not doing this round for this mate
-								continue;
-							}
-							// Figure out the seed offset
-							if(interval[mate] <= (int)roundi) {
+								// or...
+								// Figure out the seed offset
 								// Can't do this round, seeds already packed as
 								// tight as possible
-								continue;
+								//continue;
+							} else {
+								size_t offset = (interval[mate] * roundi) / nrounds[mate];
+								assert(roundi == 0 || offset > 0);
+								assert(!msinkwrap.maxed());
+								assert(msinkwrap.repOk());
+								//rnd.init(ROTL(rds[mate]->seed, 10));
+								assert(shs[mate].repOk(&ca.current()));
+								swmSeed.sdatts++;
+								// Set up seeds
+								seeds[mate]->clear();
+								Seed::mmSeeds(
+									multiseedMms,    // max # mms per seed
+									seedlens[mate],  // length of a multiseed seed
+									*seeds[mate],    // seeds
+									gc);             // global constraint
+								// Check whether the offset would drive the first seed
+								// off the end
+								if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
+									//continue;
+								} else {
+									// Instantiate the seeds
+									std::pair<int, int> instFw, instRc;
+									std::pair<int, int> inst = al.instantiateSeeds(
+										*seeds[mate],   // search seeds
+										offset,         // offset to begin extracting
+										interval[mate], // interval between seeds
+										*rds[mate],     // read to align
+										sc,             // scoring scheme
+										nofw[mate],     // don't align forward read
+										norc[mate],     // don't align revcomp read
+										ca,             // holds some seed hits from previous reads
+										shs[mate],      // holds all the seed hits
+										sdm,            // metrics
+										instFw,
+										instRc);
+									assert(shs[mate].repOk(&ca.current()));
+									if(inst.first + inst.second == 0) {
+										// No seed hits!  Done with this mate.
+										assert(shs[mate].empty());
+										done[mate] = true;
+										check_second_mate = false;
+									}
+									seedsTried += (inst.first + inst.second);
+									seedsTriedMS[mate * 2 + 0] = instFw.first + instFw.second;
+									seedsTriedMS[mate * 2 + 1] = instRc.first + instRc.second;
+									// Align seeds
+									al.searchAllSeeds(
+										*seeds[mate],     // search seeds
+										&ebwtFw,          // BWT index
+										ebwtBw,           // BWT' index
+										*rds[mate],       // read
+										sc,               // scoring scheme
+										ca,               // alignment cache
+										shs[mate],        // store seed hits here
+										sdm,              // metrics
+										prm);             // per-read metrics
+									assert(shs[mate].repOk(&ca.current()));
+									if(shs[mate].empty()) {
+										// No seed alignments!  Done with this mate.
+										done[mate] = true;
+										check_second_mate = false;
+									}
+								}
 							}
-							size_t offset = (interval[mate] * roundi) / nrounds[mate];
-							assert(roundi == 0 || offset > 0);
-							assert(!msinkwrap.maxed());
-							assert(msinkwrap.repOk());
-							//rnd.init(ROTL(rds[mate]->seed, 10));
-							assert(shs[mate].repOk(&ca.current()));
-							swmSeed.sdatts++;
-							// Set up seeds
-							seeds[mate]->clear();
-							Seed::mmSeeds(
-								multiseedMms,    // max # mms per seed
-								seedlens[mate],  // length of a multiseed seed
-								*seeds[mate],    // seeds
-								gc);             // global constraint
-							// Check whether the offset would drive the first seed
-							// off the end
-							if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
-								continue;
-							}
-							// Instantiate the seeds
-							std::pair<int, int> instFw, instRc;
-							std::pair<int, int> inst = al.instantiateSeeds(
-								*seeds[mate],   // search seeds
-								offset,         // offset to begin extracting
-								interval[mate], // interval between seeds
-								*rds[mate],     // read to align
-								sc,             // scoring scheme
-								nofw[mate],     // don't align forward read
-								norc[mate],     // don't align revcomp read
-								ca,             // holds some seed hits from previous reads
-								shs[mate],      // holds all the seed hits
-								sdm,            // metrics
-								instFw,
-								instRc);
-							assert(shs[mate].repOk(&ca.current()));
-							if(inst.first + inst.second == 0) {
-								// No seed hits!  Done with this mate.
-								assert(shs[mate].empty());
-								done[mate] = true;
-								break;
-							}
-							seedsTried += (inst.first + inst.second);
-							seedsTriedMS[mate * 2 + 0] = instFw.first + instFw.second;
-							seedsTriedMS[mate * 2 + 1] = instRc.first + instRc.second;
-							// Align seeds
-							al.searchAllSeeds(
-								*seeds[mate],     // search seeds
-								&ebwtFw,          // BWT index
-								ebwtBw,           // BWT' index
-								*rds[mate],       // read
-								sc,               // scoring scheme
-								ca,               // alignment cache
-								shs[mate],        // store seed hits here
-								sdm,              // metrics
-								prm);             // per-read metrics
-							assert(shs[mate].repOk(&ca.current()));
-							if(shs[mate].empty()) {
-								// No seed alignments!  Done with this mate.
-								done[mate] = true;
-								break;
+							mate = matemap[1];
+							if (check_second_mate) {
+								if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+									// Done with this mate
+									done[mate] = true;
+									//continue;
+								} else if(roundi >= nrounds[mate] || interval[mate] <= (int)roundi) {
+									// Not doing this round for this mate
+									// or...
+									// Figure out the seed offset
+									// Can't do this round, seeds already packed as
+									// tight as possible
+									//continue;
+								} else {
+									size_t offset = (interval[mate] * roundi) / nrounds[mate];
+									assert(roundi == 0 || offset > 0);
+									assert(!msinkwrap.maxed());
+									assert(msinkwrap.repOk());
+									//rnd.init(ROTL(rds[mate]->seed, 10));
+									assert(shs[mate].repOk(&ca.current()));
+									swmSeed.sdatts++;
+									// Set up seeds
+									seeds[mate]->clear();
+									Seed::mmSeeds(
+										multiseedMms,    // max # mms per seed
+										seedlens[mate],  // length of a multiseed seed
+										*seeds[mate],    // seeds
+										gc);             // global constraint
+									// Check whether the offset would drive the first seed
+									// off the end
+									if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
+										//continue;
+									} else {
+										// Instantiate the seeds
+										std::pair<int, int> instFw, instRc;
+										std::pair<int, int> inst = al.instantiateSeeds(
+											*seeds[mate],   // search seeds
+											offset,         // offset to begin extracting
+											interval[mate], // interval between seeds
+											*rds[mate],     // read to align
+											sc,             // scoring scheme
+											nofw[mate],     // don't align forward read
+											norc[mate],     // don't align revcomp read
+											ca,             // holds some seed hits from previous reads
+											shs[mate],      // holds all the seed hits
+											sdm,            // metrics
+											instFw,
+											instRc);
+										assert(shs[mate].repOk(&ca.current()));
+										if(inst.first + inst.second == 0) {
+											// No seed hits!  Done with this mate.
+											assert(shs[mate].empty());
+											done[mate] = true;
+											check_second_mate = false;
+										}
+										seedsTried += (inst.first + inst.second);
+										seedsTriedMS[mate * 2 + 0] = instFw.first + instFw.second;
+										seedsTriedMS[mate * 2 + 1] = instRc.first + instRc.second;
+										// Align seeds
+										al.searchAllSeeds(
+											*seeds[mate],     // search seeds
+											&ebwtFw,          // BWT index
+											ebwtBw,           // BWT' index
+											*rds[mate],       // read
+											sc,               // scoring scheme
+											ca,               // alignment cache
+											shs[mate],        // store seed hits here
+											sdm,              // metrics
+											prm);             // per-read metrics
+										assert(shs[mate].repOk(&ca.current()));
+										if(shs[mate].empty()) {
+											// No seed alignments!  Done with this mate.
+											done[mate] = true;
+											check_second_mate = false;
+										}
+									}
+								}
 							}
 						}
 						// shs contain what we need to know to update our seed
@@ -4441,6 +4521,7 @@ static void multiseedSearchWorkerPaired(void *vp) {
 						}
 
 						// unrolled second reseeding rounds
+						roundi = 1;
 						ca.nextRead(); // Clear cache in preparation for new search
 						shs[0].clearSeeds();
 						shs[1].clearSeeds();
@@ -4452,7 +4533,9 @@ static void multiseedSearchWorkerPaired(void *vp) {
 						//	if(seedlens[0] > 8) seedlens[0]--;
 							//	if(seedlens[1] > 8) seedlens[1]--;
 							//}
-						for(size_t matei = 0; matei < 2; matei++) { // DIFF 
+						// seed initiation and search
+						// UNROLL?! a lot of spread out things
+						for(size_t matei = 0; matei < 2; matei++) {
 							size_t mate = matemap[matei];
 								if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
 									// Done with this mate
@@ -4558,7 +4641,8 @@ static void multiseedSearchWorkerPaired(void *vp) {
 								seedHitTotMS[3] += shs[1].numEltsRc();
 							}
 						}
-						double uniqFactor[2] = { 0.0f, 0.0f };
+						uniqFactor[0] = 0.0f;
+						uniqFactor[1] = 0.0f;
 						for(size_t i = 0; i < 2; i++) {
 							if(!shs[i].empty()) {
 								swmSeed.sdsucc++;
