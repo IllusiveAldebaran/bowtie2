@@ -3900,10 +3900,9 @@ static void multiseedSearchWorkerPaired(void *vp) {
 						float T = bwaSwLikeT, c = bwaSwLikeC;
 						minsc[0] = (TAlScore)max<float>(a*T, a*c*log(rdlens[0]));
 						minsc[1] = (TAlScore)max<float>(a*T, a*c*log(rdlens[1]));
-					} else { // I assume this is bwa and not bwaswlike. Also, seems bwa-sw is one of three core algorithms in bwa. Check https://github.com/lh3/bwa
+					} else {
 						minsc[0] = scoreMin.f<TAlScore>(rdlens[0]);
-						minsc[1] = scoreMin.f<TAlScore>(rdlens[1]); //DIFF
-						// from my understanding rdlens[1] =0... so I assume whatever this line above does will just = 0, but idk what it is fully doing.... where else would it define minsc[1]? Actually.. a couple lines above before the if(bwaSwLike) statement... lol... okay so it sets a huge number by default then.
+						minsc[1] = scoreMin.f<TAlScore>(rdlens[1]);
 						if(localAlign) {
 							if(minsc[0] < 0) {
 								if(!gQuiet) printLocalScoreMsg(*ps, paired, true);
@@ -3946,7 +3945,7 @@ static void multiseedSearchWorkerPaired(void *vp) {
 						if(!gQuiet) printMmsSkipMsg(*ps, paired, true, multiseedMms);
 						lenfilt[0] = false;
 					}
-					if((rdlens[1] <= (size_t)multiseedMms || rdlens[1] < 2)) { // DIFF
+					if((rdlens[1] <= (size_t)multiseedMms || rdlens[1] < 2)) {
 						if(!gQuiet) printMmsSkipMsg(*ps, paired, false, multiseedMms);
 						lenfilt[1] = false;
 					}
@@ -3954,7 +3953,7 @@ static void multiseedSearchWorkerPaired(void *vp) {
 						if(!gQuiet) printLenSkipMsg(*ps, paired, true);
 						lenfilt[0] = false;
 					}
-					if(rdlens[1] < 2) { // DIFF
+					if(rdlens[1] < 2) {
 						if(!gQuiet) printLenSkipMsg(*ps, paired, false);
 						lenfilt[1] = false;
 					}
@@ -3964,17 +3963,16 @@ static void multiseedSearchWorkerPaired(void *vp) {
 						qcfilt[1] = (ps->read_b().filter != '0');
 					}
 					filt[0] = (nfilt[0] && scfilt[0] && lenfilt[0] && qcfilt[0]);
-					filt[1] = (nfilt[1] && scfilt[1] && lenfilt[1] && qcfilt[1]); // same thing as before... propagaion of index 1.
+					filt[1] = (nfilt[1] && scfilt[1] && lenfilt[1] && qcfilt[1]);
 					prm.nFilt += (filt[0] ? 0 : 1) + (filt[1] ? 0 : 1);
-					Read* rds[2] = { &ps->read_a(), &ps->read_b() }; // sometimes I thinkkk why is it called a and b but in our arguments -1 and -2? who knows. not me. I never lost control.
-					// For each mate...
+					Read* rds[2] = { &ps->read_a(), &ps->read_b() };
+
 					assert(msinkwrap.empty());
 					sd.nextRead(paired, rdrows[0], rdrows[1]); // SwDriver
 					// Calcualte nofw / no rc
 					bool nofw[2] = { false, false };
 					bool norc[2] = { false, false };
 
-					// DIFF ! So man... but does it matter? idk what this means gMate2fw
 					nofw[0] = gMate1fw ? gNofw : gNorc;
 					norc[0] = gMate1fw ? gNorc : gNofw;
 					nofw[1] = gMate2fw ? gNofw : gNorc;
@@ -3987,7 +3985,7 @@ static void multiseedSearchWorkerPaired(void *vp) {
 					nceil[1] = min(nceil[1], (int)rdlens[1]);
 					exhaustive[0] = exhaustive[1] = false;
 					size_t matemap[2] = { 0, 1 };
-					bool pairPostFilt = filt[0] && filt[1]; // a lot of propagation again... like... this is if both... and this is just checking paired
+					bool pairPostFilt = filt[0] && filt[1];
 					if(pairPostFilt) { // DIFF! This only happens in paired alignment
 						rnd.init(ps->read_a().seed ^ ps->read_b().seed);
 					} else {
@@ -3995,22 +3993,19 @@ static void multiseedSearchWorkerPaired(void *vp) {
 					}
 					// Calculate interval length for both mates
 					int interval[2] = { 0, 0 };
-					//for(size_t mate = 0; mate < 2; mate++) { // DIFF look happens differently depending on stuff
-					{
-						interval[0] = msIval.f<int>((double)rdlens[0]);
-						if(filt[0] && filt[1]) {
-							// Boost interval length by 20% for paired-end reads
-							interval[0] = (int)(interval[0] * 1.2 + 0.5);
-						}
-						interval[0] = max(interval[0], 1);
-
-						interval[1] = msIval.f<int>((double)rdlens[1]);
-						if(filt[0] && filt[1]) {
-							// Boost interval length by 20% for paired-end reads
-							interval[1] = (int)(interval[1] * 1.2 + 0.5);
-						}
-						interval[1] = max(interval[1], 1);
+					interval[0] = msIval.f<int>((double)rdlens[0]);
+					if(filt[0] && filt[1]) {
+						// Boost interval length by 20% for paired-end reads
+						interval[0] = (int)(interval[0] * 1.2 + 0.5);
 					}
+					interval[0] = max(interval[0], 1);
+
+					interval[1] = msIval.f<int>((double)rdlens[1]);
+					if(filt[0] && filt[1]) {
+						// Boost interval length by 20% for paired-end reads
+						interval[1] = (int)(interval[1] * 1.2 + 0.5);
+					}
+					interval[1] = max(interval[1], 1);
 					// Calculate streak length
 					size_t streak[2]    = { maxDpStreak,   maxDpStreak };
 					size_t mtStreak[2]  = { maxMateStreak, maxMateStreak };
@@ -4024,19 +4019,16 @@ static void multiseedSearchWorkerPaired(void *vp) {
 						mxUg[0]     = mxUg[1]     = std::numeric_limits<size_t>::max();
 						mxIter[0]   = mxIter[1]   = std::numeric_limits<size_t>::max();
 					} else if(khits > 1) {
-						//for(size_t mate = 0; mate < 2; mate++) {
-						{
-							streak[0]   += (khits-1) * maxStreakIncr;
-							mtStreak[0] += (khits-1) * maxStreakIncr;
-							mxDp[0]     += (khits-1) * maxItersIncr;
-							mxUg[0]     += (khits-1) * maxItersIncr;
-							mxIter[0]   += (khits-1) * maxItersIncr;
-							streak[1]   += (khits-1) * maxStreakIncr;
-							mtStreak[1] += (khits-1) * maxStreakIncr;
-							mxDp[1]     += (khits-1) * maxItersIncr;
-							mxUg[1]     += (khits-1) * maxItersIncr;
-							mxIter[1]   += (khits-1) * maxItersIncr;
-						}
+						streak[0]   += (khits-1) * maxStreakIncr;
+						mtStreak[0] += (khits-1) * maxStreakIncr;
+						mxDp[0]     += (khits-1) * maxItersIncr;
+						mxUg[0]     += (khits-1) * maxItersIncr;
+						mxIter[0]   += (khits-1) * maxItersIncr;
+						streak[1]   += (khits-1) * maxStreakIncr;
+						mtStreak[1] += (khits-1) * maxStreakIncr;
+						mxDp[1]     += (khits-1) * maxItersIncr;
+						mxUg[1]     += (khits-1) * maxItersIncr;
+						mxIter[1]   += (khits-1) * maxItersIncr;
 					}
 					if(filt[0] && filt[1]) {
 						streak[0] = (size_t)ceil((double)streak[0] / 2.0);
@@ -4055,29 +4047,28 @@ static void multiseedSearchWorkerPaired(void *vp) {
 					}
 					assert_gt(nrounds[0], 0);
 					// Increment counters according to what got filtered
-					//for(size_t mate = 0; mate < 2; mate++) { // DIFF
-						if(!filt[0]) {
-							// 0 was rejected by N filter
-							olm.freads++;               // reads filtered out
-							olm.fbases += rdlens[0]; // bases filtered out
-						} else {
-							shs[0].clear();
-							shs[0].nextRead(0 == 0 ? ps->read_a() : ps->read_b());
-							assert(shs[0].empty());
-							olm.ureads++;               // reads passing filter
-							olm.ubases += rdlens[0]; // bases passing filter
-						}
-						if(!filt[1]) {
-							// 1 was rejected by N filter
-							olm.freads++;               // reads filtered out
-							olm.fbases += rdlens[1]; // bases filtered out
-						} else {
-							shs[1].clear();
-							shs[1].nextRead(1 == 0 ? ps->read_a() : ps->read_b());
-							assert(shs[1].empty());
-							olm.ureads++;               // reads passing filter
-							olm.ubases += rdlens[1]; // bases passing filter
-						}
+					if(!filt[0]) {
+						// 0 was rejected by N filter
+						olm.freads++;               // reads filtered out
+						olm.fbases += rdlens[0]; // bases filtered out
+					} else {
+						shs[0].clear();
+						shs[0].nextRead(0 == 0 ? ps->read_a() : ps->read_b());
+						assert(shs[0].empty());
+						olm.ureads++;               // reads passing filter
+						olm.ubases += rdlens[0]; // bases passing filter
+					}
+					if(!filt[1]) {
+						// 1 was rejected by N filter
+						olm.freads++;               // reads filtered out
+						olm.fbases += rdlens[1]; // bases filtered out
+					} else {
+						shs[1].clear();
+						shs[1].nextRead(1 == 0 ? ps->read_a() : ps->read_b());
+						assert(shs[1].empty());
+						olm.ureads++;               // reads passing filter
+						olm.ubases += rdlens[1]; // bases passing filter
+					}
 					// Whether we're done with mate1 / mate2
 					bool done[2] = { !filt[0], !filt[1] };
 
@@ -4092,485 +4083,50 @@ static void multiseedSearchWorkerPaired(void *vp) {
 					size_t nUniqueSeedsMS[] = {0, 0, 0, 0};
 					size_t nRepeatSeedsMS[] = {0, 0, 0, 0};
 					size_t seedHitTotMS[] = {0, 0, 0, 0};
-					//for(size_t roundi = 0; roundi < nSeedRounds; roundi++) {
-					{
-						size_t roundi = 0;
-						ca.nextRead(); // Clear cache in preparation for new search
-						shs[0].clearSeeds();
-						shs[1].clearSeeds();
-						assert(shs[0].empty());
-						assert(shs[1].empty());
-						assert(shs[0].repOk(&ca.current()));
-						assert(shs[1].repOk(&ca.current()));
-						//if(roundi > 0) {
-						//	if(seedlens[0] > 8) seedlens[0]--;
-							//	if(seedlens[1] > 8) seedlens[1]--;
-							//}
-						// UNROLL.. but a lot of loops
-						bool check_second_mate = true;
-						//for(size_t matei = 0; matei < 2; matei++) { // DIFF 
-						{
-							size_t mate = matemap[0];
-							if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
-								// Done with this mate
-								done[mate] = true;
-								//continue;
-							} else if(roundi >= nrounds[mate] || interval[mate] <= (int)roundi) {
-								// Not doing this round for this mate
-								// or...
-								// Figure out the seed offset
-								// Can't do this round, seeds already packed as
-								// tight as possible
-								//continue;
-							} else {
-								size_t offset = (interval[mate] * roundi) / nrounds[mate];
-								assert(roundi == 0 || offset > 0);
-								assert(!msinkwrap.maxed());
-								assert(msinkwrap.repOk());
-								//rnd.init(ROTL(rds[mate]->seed, 10));
-								assert(shs[mate].repOk(&ca.current()));
-								swmSeed.sdatts++;
-								// Set up seeds
-								seeds[mate]->clear();
-								Seed::mmSeeds(
-									multiseedMms,    // max # mms per seed
-									seedlens[mate],  // length of a multiseed seed
-									*seeds[mate],    // seeds
-									gc);             // global constraint
-								// Check whether the offset would drive the first seed
-								// off the end
-								if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
-									//continue;
-								} else {
-									// Instantiate the seeds
-									std::pair<int, int> instFw, instRc;
-									std::pair<int, int> inst = al.instantiateSeeds(
-										*seeds[mate],   // search seeds
-										offset,         // offset to begin extracting
-										interval[mate], // interval between seeds
-										*rds[mate],     // read to align
-										sc,             // scoring scheme
-										nofw[mate],     // don't align forward read
-										norc[mate],     // don't align revcomp read
-										ca,             // holds some seed hits from previous reads
-										shs[mate],      // holds all the seed hits
-										sdm,            // metrics
-										instFw,
-										instRc);
-									assert(shs[mate].repOk(&ca.current()));
-									if(inst.first + inst.second == 0) {
-										// No seed hits!  Done with this mate.
-										assert(shs[mate].empty());
-										done[mate] = true;
-										check_second_mate = false;
-									}
-									seedsTried += (inst.first + inst.second);
-									seedsTriedMS[mate * 2 + 0] = instFw.first + instFw.second;
-									seedsTriedMS[mate * 2 + 1] = instRc.first + instRc.second;
-									// Align seeds
-									al.searchAllSeeds(
-										*seeds[mate],     // search seeds
-										&ebwtFw,          // BWT index
-										ebwtBw,           // BWT' index
-										*rds[mate],       // read
-										sc,               // scoring scheme
-										ca,               // alignment cache
-										shs[mate],        // store seed hits here
-										sdm,              // metrics
-										prm);             // per-read metrics
-									assert(shs[mate].repOk(&ca.current()));
-									if(shs[mate].empty()) {
-										// No seed alignments!  Done with this mate.
-										done[mate] = true;
-										check_second_mate = false;
-									}
-								}
-							}
-							mate = matemap[1];
-							if (check_second_mate) {
-								if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
-									// Done with this mate
-									done[mate] = true;
-									//continue;
-								} else if(roundi >= nrounds[mate] || interval[mate] <= (int)roundi) {
-									// Not doing this round for this mate
-									// or...
-									// Figure out the seed offset
-									// Can't do this round, seeds already packed as
-									// tight as possible
-									//continue;
-								} else {
-									size_t offset = (interval[mate] * roundi) / nrounds[mate];
-									assert(roundi == 0 || offset > 0);
-									assert(!msinkwrap.maxed());
-									assert(msinkwrap.repOk());
-									//rnd.init(ROTL(rds[mate]->seed, 10));
-									assert(shs[mate].repOk(&ca.current()));
-									swmSeed.sdatts++;
-									// Set up seeds
-									seeds[mate]->clear();
-									Seed::mmSeeds(
-										multiseedMms,    // max # mms per seed
-										seedlens[mate],  // length of a multiseed seed
-										*seeds[mate],    // seeds
-										gc);             // global constraint
-									// Check whether the offset would drive the first seed
-									// off the end
-									if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
-										//continue;
-									} else {
-										// Instantiate the seeds
-										std::pair<int, int> instFw, instRc;
-										std::pair<int, int> inst = al.instantiateSeeds(
-											*seeds[mate],   // search seeds
-											offset,         // offset to begin extracting
-											interval[mate], // interval between seeds
-											*rds[mate],     // read to align
-											sc,             // scoring scheme
-											nofw[mate],     // don't align forward read
-											norc[mate],     // don't align revcomp read
-											ca,             // holds some seed hits from previous reads
-											shs[mate],      // holds all the seed hits
-											sdm,            // metrics
-											instFw,
-											instRc);
-										assert(shs[mate].repOk(&ca.current()));
-										if(inst.first + inst.second == 0) {
-											// No seed hits!  Done with this mate.
-											assert(shs[mate].empty());
-											done[mate] = true;
-											check_second_mate = false;
-										}
-										seedsTried += (inst.first + inst.second);
-										seedsTriedMS[mate * 2 + 0] = instFw.first + instFw.second;
-										seedsTriedMS[mate * 2 + 1] = instRc.first + instRc.second;
-										// Align seeds
-										al.searchAllSeeds(
-											*seeds[mate],     // search seeds
-											&ebwtFw,          // BWT index
-											ebwtBw,           // BWT' index
-											*rds[mate],       // read
-											sc,               // scoring scheme
-											ca,               // alignment cache
-											shs[mate],        // store seed hits here
-											sdm,              // metrics
-											prm);             // per-read metrics
-										assert(shs[mate].repOk(&ca.current()));
-										if(shs[mate].empty()) {
-											// No seed alignments!  Done with this mate.
-											done[mate] = true;
-											check_second_mate = false;
-										}
-									}
-								}
-							}
-						}
-						// shs contain what we need to know to update our seed
-						// summaries for this seeding
-						//for(size_t mate = 0; mate < 2; mate++) {
-						{
-							if(!shs[0].empty()) {
-								nUniqueSeeds += shs[0].numUniqueSeeds();
-								nUniqueSeedsMS[0] += shs[0].numUniqueSeedsStrand(true);
-								nUniqueSeedsMS[1] += shs[0].numUniqueSeedsStrand(false);
-								nRepeatSeeds += shs[0].numRepeatSeeds();
-								nRepeatSeedsMS[0] += shs[0].numRepeatSeedsStrand(true);
-								nRepeatSeedsMS[1] += shs[0].numRepeatSeedsStrand(false);
-								seedHitTot += shs[0].numElts();
-								seedHitTotMS[0] += shs[0].numEltsFw();
-								seedHitTotMS[1] += shs[0].numEltsRc();
-							}
-							if(!shs[1].empty()) {
-								nUniqueSeeds += shs[1].numUniqueSeeds();
-								nUniqueSeedsMS[2] += shs[1].numUniqueSeedsStrand(true);
-								nUniqueSeedsMS[3] += shs[1].numUniqueSeedsStrand(false);
-								nRepeatSeeds += shs[1].numRepeatSeeds();
-								nRepeatSeedsMS[2] += shs[1].numRepeatSeedsStrand(true);
-								nRepeatSeedsMS[3] += shs[1].numRepeatSeedsStrand(false);
-								seedHitTot += shs[1].numElts();
-								seedHitTotMS[2] += shs[1].numEltsFw();
-								seedHitTotMS[3] += shs[1].numEltsRc();
-							}
-						}
-						double uniqFactor[2] = { 0.0f, 0.0f };
-						for(size_t i = 0; i < 2; i++) {
-							if(!shs[i].empty()) {
-								swmSeed.sdsucc++;
-								uniqFactor[i] = shs[i].uniquenessFactor();
-							}
-						}
-						// Possibly reorder the mates
-						matemap[0] = 0; matemap[1] = 1;
-						if(!shs[0].empty() && !shs[1].empty() && uniqFactor[1] > uniqFactor[0]) {
-							// Do the mate with fewer exact hits first
-							// TODO: Consider mates & orientations separately?
-							matemap[0] = 1; matemap[1] = 0;
-						}
-						//for(size_t matei = 0; matei < 2; matei++) {
-						{
-							size_t mate = matemap[0];
-							if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
-								// Done with this mate
-								done[mate] = true;
-								//continue;
-							} else {
-								assert(!msinkwrap.maxed());
-								assert(msinkwrap.repOk());
-								//rnd.init(ROTL(rds[mate]->seed, 10));
-								assert(shs[mate].repOk(&ca.current()));
-								if(!seedSumm) {
-									// If there aren't any seed hits...
-									if(shs[mate].empty()) {
-										//continue; // on to the next mate
-									} else {
-										// Sort seed hits into ranks
-										shs[mate].rankSeedHits(rnd, msinkwrap.allHits());
-										int ret = 0;
-										// Paired-end dynamic programming driver
-										ret = sd.extendSeedsPaired(
-											*rds[mate],     // mate to align as anchor
-											*rds[mate ^ 1], // mate to align as opp.
-											mate == 0,      // anchor is mate 1?
-											!filt[mate ^ 1],// opposite mate filtered out?
-											shs[mate],      // seed hits for anchor
-											ebwtFw,         // bowtie index
-											ebwtBw,         // rev bowtie index
-											ref,            // packed reference strings
-											sw,             // dyn prog aligner, anchor
-											osw,            // dyn prog aligner, opposite
-											sc,             // scoring scheme
-											pepol,          // paired-end policy
-											multiseedMms,   // # mms allowed in a seed
-											seedlens[mate], // length of a seed
-											interval[mate], // interval between seeds
-											minsc[mate],    // min score for anchor
-											minsc[mate^1],  // min score for opp.
-											nceil[mate],    // N ceil for anchor
-											nceil[mate^1],  // N ceil for opp.
-											nofw[mate],     // don't align forward read
-											norc[mate],     // don't align revcomp read
-											maxhalf,        // max width on one DP side
-											doUngapped,     // do ungapped alignment
-											mxIter[mate],   // max extend loop iters
-											mxUg[mate],     // max # ungapped extends
-											mxDp[mate],     // max # DPs
-											streak[mate],   // stop after streak of this many end-to-end fails
-											streak[mate],   // stop after streak of this many ungap fails
-											streak[mate],   // stop after streak of this many dp fails
-											mtStreak[mate], // max mate fails per seed range
-											doExtend,       // extend seed hits
-											enable8,        // use 8-bit SSE where possible
-											cminlen,        // checkpoint if read is longer
-											cpow2,          // checkpointer interval, log2
-											doTri,          // triangular mini-fills?
-											tighten,        // -M score tightening mode
-											ca,             // seed alignment cache
-											rnd,            // pseudo-random source
-											wlm,            // group walk left metrics
-											swmSeed,        // DP metrics, seed extend
-											swmMate,        // DP metrics, mate finding
-											prm,            // per-read metrics
-											&msinkwrap,     // for organizing hits
-											true,           // seek mate immediately
-											true,           // report hits once found
-											gReportDiscordant,// look for discordant alns?
-											gReportMixed,   // look for unpaired alns?
-											exhaustive[mate]);
-											// Might be done, but just with this mate
-										assert_gt(ret, 0);
-										MERGE_SW(sw);
-										MERGE_SW(osw);
-										if(ret == EXTEND_EXHAUSTED_CANDIDATES) {
-											// Not done yet
-										} else if(ret == EXTEND_POLICY_FULFILLED) {
-											// Policy is satisfied for this mate at least
-											if(msinkwrap.state().doneWithMate(mate == 0)) {
-												done[mate] = true;
-											}
-											if(msinkwrap.state().doneWithMate(mate == 1)) {
-												done[mate^1] = true;
-											}
-										} else if(ret == EXTEND_PERFECT_SCORE) {
-											// We exhausted this made at least
-											done[mate] = true;
-										} else if(ret == EXTEND_EXCEEDED_HARD_LIMIT) {
-											// We exceeded a per-read limit
-											done[mate] = true;
-										} else if(ret == EXTEND_EXCEEDED_SOFT_LIMIT) {
-											// Not done yet
-										} else {
-											//
-											cerr << "Bad return value: " << ret << endl;
-											throw 1;
-										}
-									}
-								} // if(!seedSumm)
-							}
-							// second part of unrolled loop
-							mate = matemap[1];
-							if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
-								// Done with this mate
-								done[mate] = true;
-								//continue;
-							} else {
-								assert(!msinkwrap.maxed());
-								assert(msinkwrap.repOk());
-								//rnd.init(ROTL(rds[mate]->seed, 10));
-								assert(shs[mate].repOk(&ca.current()));
-								if(!seedSumm) {
-									// If there aren't any seed hits...
-									if(shs[mate].empty()) {
-										//continue; // on to the next mate
-									} else {
-										// Sort seed hits into ranks
-										shs[mate].rankSeedHits(rnd, msinkwrap.allHits());
-										int ret = 0;
-										// Paired-end dynamic programming driver
-										ret = sd.extendSeedsPaired(
-											*rds[mate],     // mate to align as anchor
-											*rds[mate ^ 1], // mate to align as opp.
-											mate == 0,      // anchor is mate 1?
-											!filt[mate ^ 1],// opposite mate filtered out?
-											shs[mate],      // seed hits for anchor
-											ebwtFw,         // bowtie index
-											ebwtBw,         // rev bowtie index
-											ref,            // packed reference strings
-											sw,             // dyn prog aligner, anchor
-											osw,            // dyn prog aligner, opposite
-											sc,             // scoring scheme
-											pepol,          // paired-end policy
-											multiseedMms,   // # mms allowed in a seed
-											seedlens[mate], // length of a seed
-											interval[mate], // interval between seeds
-											minsc[mate],    // min score for anchor
-											minsc[mate^1],  // min score for opp.
-											nceil[mate],    // N ceil for anchor
-											nceil[mate^1],  // N ceil for opp.
-											nofw[mate],     // don't align forward read
-											norc[mate],     // don't align revcomp read
-											maxhalf,        // max width on one DP side
-											doUngapped,     // do ungapped alignment
-											mxIter[mate],   // max extend loop iters
-											mxUg[mate],     // max # ungapped extends
-											mxDp[mate],     // max # DPs
-											streak[mate],   // stop after streak of this many end-to-end fails
-											streak[mate],   // stop after streak of this many ungap fails
-											streak[mate],   // stop after streak of this many dp fails
-											mtStreak[mate], // max mate fails per seed range
-											doExtend,       // extend seed hits
-											enable8,        // use 8-bit SSE where possible
-											cminlen,        // checkpoint if read is longer
-											cpow2,          // checkpointer interval, log2
-											doTri,          // triangular mini-fills?
-											tighten,        // -M score tightening mode
-											ca,             // seed alignment cache
-											rnd,            // pseudo-random source
-											wlm,            // group walk left metrics
-											swmSeed,        // DP metrics, seed extend
-											swmMate,        // DP metrics, mate finding
-											prm,            // per-read metrics
-											&msinkwrap,     // for organizing hits
-											true,           // seek mate immediately
-											true,           // report hits once found
-											gReportDiscordant,// look for discordant alns?
-											gReportMixed,   // look for unpaired alns?
-											exhaustive[mate]);
-											// Might be done, but just with this mate
-										assert_gt(ret, 0);
-										MERGE_SW(sw);
-										MERGE_SW(osw);
-										if(ret == EXTEND_EXHAUSTED_CANDIDATES) {
-											// Not done yet
-										} else if(ret == EXTEND_POLICY_FULFILLED) {
-											// Policy is satisfied for this mate at least
-											if(msinkwrap.state().doneWithMate(mate == 0)) {
-												done[mate] = true;
-											}
-											if(msinkwrap.state().doneWithMate(mate == 1)) {
-												done[mate^1] = true;
-											}
-										} else if(ret == EXTEND_PERFECT_SCORE) {
-											// We exhausted this made at least
-											done[mate] = true;
-										} else if(ret == EXTEND_EXCEEDED_HARD_LIMIT) {
-											// We exceeded a per-read limit
-											done[mate] = true;
-										} else if(ret == EXTEND_EXCEEDED_SOFT_LIMIT) {
-											// Not done yet
-										} else {
-											//
-											cerr << "Bad return value: " << ret << endl;
-											throw 1;
-										}
-									}
-								} // if(!seedSumm)
-							}
-						} // for(size_t matei = 0; matei < p(aired ? 2:1); matei++)
 
-						// We don't necessarily have to continue investigating both
-						// mates.  We continue on a mate only if its average
-						// interval length is high (> 1000)
-						//for(size_t mate = 0; mate < 2; mate++) 
-						{
-							if(!done[0] && shs[0].averageHitsPerSeed() < seedBoostThresh) {
-								done[0] = true;
-							}
-							if(!done[1] && shs[1].averageHitsPerSeed() < seedBoostThresh) {
-								done[1] = true;
-							}
-						}
-
-						// unrolled second reseeding rounds
-						roundi = 1;
-						ca.nextRead(); // Clear cache in preparation for new search
-						shs[0].clearSeeds();
-						shs[1].clearSeeds();
-						assert(shs[0].empty());
-						assert(shs[1].empty());
-						assert(shs[0].repOk(&ca.current()));
-						assert(shs[1].repOk(&ca.current()));
-						//if(roundi > 0) {
-						//	if(seedlens[0] > 8) seedlens[0]--;
-							//	if(seedlens[1] > 8) seedlens[1]--;
-							//}
-						// seed initiation and search
-						// UNROLL?! a lot of spread out things
-						for(size_t matei = 0; matei < 2; matei++) {
-							size_t mate = matemap[matei];
-								if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
-									// Done with this mate
-								done[mate] = true;
-								continue;
-							}
-							if(roundi >= nrounds[mate]) {
-								// Not doing this round for this mate
-								continue;
-							}
-							// Figure out the seed offset
-							if(interval[mate] <= (int)roundi) {
-								// Can't do this round, seeds already packed as
-								// tight as possible
-								continue;
-							}
-							size_t offset = (interval[mate] * roundi) / nrounds[mate];
-							assert(roundi == 0 || offset > 0);
-							assert(!msinkwrap.maxed());
-							assert(msinkwrap.repOk());
-							//rnd.init(ROTL(rds[mate]->seed, 10));
-							assert(shs[mate].repOk(&ca.current()));
-							swmSeed.sdatts++;
-							// Set up seeds
-							seeds[mate]->clear();
-							Seed::mmSeeds(
-								multiseedMms,    // max # mms per seed
-								seedlens[mate],  // length of a multiseed seed
-								*seeds[mate],    // seeds
-								gc);             // global constraint
-							// Check whether the offset would drive the first seed
-							// off the end
-							if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
-								continue;
-							}
+					// reseeding unrolled since it is treated as a constant
+					size_t roundi = 0;
+					ca.nextRead(); // Clear cache in preparation for new search
+					shs[0].clearSeeds();
+					shs[1].clearSeeds();
+					assert(shs[0].empty());
+					assert(shs[1].empty());
+					assert(shs[0].repOk(&ca.current()));
+					assert(shs[1].repOk(&ca.current()));
+					// UNROLL.. but a lot of loops
+					bool check_second_mate = true;
+					size_t mate = matemap[0];
+					if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+						// Done with this mate
+						done[mate] = true;
+						//continue;
+					} else if(roundi >= nrounds[mate] || interval[mate] <= (int)roundi) {
+						// Not doing this round for this mate
+						// or...
+						// Figure out the seed offset
+						// Can't do this round, seeds already packed as
+						// tight as possible
+						//continue;
+					} else {
+						size_t offset = (interval[mate] * roundi) / nrounds[mate];
+						assert(roundi == 0 || offset > 0);
+						assert(!msinkwrap.maxed());
+						assert(msinkwrap.repOk());
+						//rnd.init(ROTL(rds[mate]->seed, 10));
+						assert(shs[mate].repOk(&ca.current()));
+						swmSeed.sdatts++;
+						// Set up seeds
+						seeds[mate]->clear();
+						Seed::mmSeeds(
+							multiseedMms,    // max # mms per seed
+							seedlens[mate],  // length of a multiseed seed
+							*seeds[mate],    // seeds
+							gc);             // global constraint
+						// Check whether the offset would drive the first seed
+						// off the end
+						if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
+							//continue;
+						} else {
 							// Instantiate the seeds
 							std::pair<int, int> instFw, instRc;
 							std::pair<int, int> inst = al.instantiateSeeds(
@@ -4591,7 +4147,7 @@ static void multiseedSearchWorkerPaired(void *vp) {
 								// No seed hits!  Done with this mate.
 								assert(shs[mate].empty());
 								done[mate] = true;
-								break;
+								check_second_mate = false;
 							}
 							seedsTried += (inst.first + inst.second);
 							seedsTriedMS[mate * 2 + 0] = instFw.first + instFw.second;
@@ -4611,265 +4167,746 @@ static void multiseedSearchWorkerPaired(void *vp) {
 							if(shs[mate].empty()) {
 								// No seed alignments!  Done with this mate.
 								done[mate] = true;
-								break;
+								check_second_mate = false;
 							}
 						}
-						// shs contain what we need to know to update our seed
-						// summaries for this seeding
-						//for(size_t mate = 0; mate < 2; mate++) {
-						{
-							if(!shs[0].empty()) {
-								nUniqueSeeds += shs[0].numUniqueSeeds();
-								nUniqueSeedsMS[0] += shs[0].numUniqueSeedsStrand(true);
-								nUniqueSeedsMS[1] += shs[0].numUniqueSeedsStrand(false);
-								nRepeatSeeds += shs[0].numRepeatSeeds();
-								nRepeatSeedsMS[0] += shs[0].numRepeatSeedsStrand(true);
-								nRepeatSeedsMS[1] += shs[0].numRepeatSeedsStrand(false);
-								seedHitTot += shs[0].numElts();
-								seedHitTotMS[0] += shs[0].numEltsFw();
-								seedHitTotMS[1] += shs[0].numEltsRc();
-							}
-							if(!shs[1].empty()) {
-								nUniqueSeeds += shs[1].numUniqueSeeds();
-								nUniqueSeedsMS[2] += shs[1].numUniqueSeedsStrand(true);
-								nUniqueSeedsMS[3] += shs[1].numUniqueSeedsStrand(false);
-								nRepeatSeeds += shs[1].numRepeatSeeds();
-								nRepeatSeedsMS[2] += shs[1].numRepeatSeedsStrand(true);
-								nRepeatSeedsMS[3] += shs[1].numRepeatSeedsStrand(false);
-								seedHitTot += shs[1].numElts();
-								seedHitTotMS[2] += shs[1].numEltsFw();
-								seedHitTotMS[3] += shs[1].numEltsRc();
-							}
-						}
-						uniqFactor[0] = 0.0f;
-						uniqFactor[1] = 0.0f;
-						for(size_t i = 0; i < 2; i++) {
-							if(!shs[i].empty()) {
-								swmSeed.sdsucc++;
-								uniqFactor[i] = shs[i].uniquenessFactor();
-							}
-						}
-						// Possibly reorder the mates
-						matemap[0] = 0; matemap[1] = 1;
-						if(!shs[0].empty() && !shs[1].empty() && uniqFactor[1] > uniqFactor[0]) {
-							// Do the mate with fewer exact hits first
-							// TODO: Consider mates & orientations separately?
-							matemap[0] = 1; matemap[1] = 0;
-						}
-						//for(size_t matei = 0; matei < 2; matei++) {
-						{
-							size_t mate = matemap[0];
-							if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
-								// Done with this mate
-								done[mate] = true;
+					}
+					mate = matemap[1];
+					if (check_second_mate) {
+						if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+							// Done with this mate
+							done[mate] = true;
+							//continue;
+						} else if(roundi >= nrounds[mate] || interval[mate] <= (int)roundi) {
+							// Not doing this round for this mate
+							// or...
+							// Figure out the seed offset
+							// Can't do this round, seeds already packed as
+							// tight as possible
+							//continue;
+						} else {
+							size_t offset = (interval[mate] * roundi) / nrounds[mate];
+							assert(roundi == 0 || offset > 0);
+							assert(!msinkwrap.maxed());
+							assert(msinkwrap.repOk());
+							//rnd.init(ROTL(rds[mate]->seed, 10));
+							assert(shs[mate].repOk(&ca.current()));
+							swmSeed.sdatts++;
+							// Set up seeds
+							seeds[mate]->clear();
+							Seed::mmSeeds(
+								multiseedMms,    // max # mms per seed
+								seedlens[mate],  // length of a multiseed seed
+								*seeds[mate],    // seeds
+								gc);             // global constraint
+							// Check whether the offset would drive the first seed
+							// off the end
+							if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
 								//continue;
 							} else {
-								assert(!msinkwrap.maxed());
-								assert(msinkwrap.repOk());
-								//rnd.init(ROTL(rds[mate]->seed, 10));
+								// Instantiate the seeds
+								std::pair<int, int> instFw, instRc;
+								std::pair<int, int> inst = al.instantiateSeeds(
+									*seeds[mate],   // search seeds
+									offset,         // offset to begin extracting
+									interval[mate], // interval between seeds
+									*rds[mate],     // read to align
+									sc,             // scoring scheme
+									nofw[mate],     // don't align forward read
+									norc[mate],     // don't align revcomp read
+									ca,             // holds some seed hits from previous reads
+									shs[mate],      // holds all the seed hits
+									sdm,            // metrics
+									instFw,
+									instRc);
 								assert(shs[mate].repOk(&ca.current()));
-								if(!seedSumm) {
-									// If there aren't any seed hits...
-									if(shs[mate].empty()) {
-										//continue; // on to the next mate
-									} else {
-										// Sort seed hits into ranks
-										shs[mate].rankSeedHits(rnd, msinkwrap.allHits());
-										int ret = 0;
-										// Paired-end dynamic programming driver
-										ret = sd.extendSeedsPaired(
-											*rds[mate],     // mate to align as anchor
-											*rds[mate ^ 1], // mate to align as opp.
-											mate == 0,      // anchor is mate 1?
-											!filt[mate ^ 1],// opposite mate filtered out?
-											shs[mate],      // seed hits for anchor
-											ebwtFw,         // bowtie index
-											ebwtBw,         // rev bowtie index
-											ref,            // packed reference strings
-											sw,             // dyn prog aligner, anchor
-											osw,            // dyn prog aligner, opposite
-											sc,             // scoring scheme
-											pepol,          // paired-end policy
-											multiseedMms,   // # mms allowed in a seed
-											seedlens[mate], // length of a seed
-											interval[mate], // interval between seeds
-											minsc[mate],    // min score for anchor
-											minsc[mate^1],  // min score for opp.
-											nceil[mate],    // N ceil for anchor
-											nceil[mate^1],  // N ceil for opp.
-											nofw[mate],     // don't align forward read
-											norc[mate],     // don't align revcomp read
-											maxhalf,        // max width on one DP side
-											doUngapped,     // do ungapped alignment
-											mxIter[mate],   // max extend loop iters
-											mxUg[mate],     // max # ungapped extends
-											mxDp[mate],     // max # DPs
-											streak[mate],   // stop after streak of this many end-to-end fails
-											streak[mate],   // stop after streak of this many ungap fails
-											streak[mate],   // stop after streak of this many dp fails
-											mtStreak[mate], // max mate fails per seed range
-											doExtend,       // extend seed hits
-											enable8,        // use 8-bit SSE where possible
-											cminlen,        // checkpoint if read is longer
-											cpow2,          // checkpointer interval, log2
-											doTri,          // triangular mini-fills?
-											tighten,        // -M score tightening mode
-											ca,             // seed alignment cache
-											rnd,            // pseudo-random source
-											wlm,            // group walk left metrics
-											swmSeed,        // DP metrics, seed extend
-											swmMate,        // DP metrics, mate finding
-											prm,            // per-read metrics
-											&msinkwrap,     // for organizing hits
-											true,           // seek mate immediately
-											true,           // report hits once found
-											gReportDiscordant,// look for discordant alns?
-											gReportMixed,   // look for unpaired alns?
-											exhaustive[mate]);
-											// Might be done, but just with this mate
-										assert_gt(ret, 0);
-										MERGE_SW(sw);
-										MERGE_SW(osw);
-										if(ret == EXTEND_EXHAUSTED_CANDIDATES) {
-											// Not done yet
-										} else if(ret == EXTEND_POLICY_FULFILLED) {
-											// Policy is satisfied for this mate at least
-											if(msinkwrap.state().doneWithMate(mate == 0)) {
-												done[mate] = true;
-											}
-											if(msinkwrap.state().doneWithMate(mate == 1)) {
-												done[mate^1] = true;
-											}
-										} else if(ret == EXTEND_PERFECT_SCORE) {
-											// We exhausted this made at least
-											done[mate] = true;
-										} else if(ret == EXTEND_EXCEEDED_HARD_LIMIT) {
-											// We exceeded a per-read limit
-											done[mate] = true;
-										} else if(ret == EXTEND_EXCEEDED_SOFT_LIMIT) {
-											// Not done yet
-										} else {
-											//
-											cerr << "Bad return value: " << ret << endl;
-											throw 1;
-										}
-									}
-								} // if(!seedSumm)
+								if(inst.first + inst.second == 0) {
+									// No seed hits!  Done with this mate.
+									assert(shs[mate].empty());
+									done[mate] = true;
+									check_second_mate = false;
+								}
+								seedsTried += (inst.first + inst.second);
+								seedsTriedMS[mate * 2 + 0] = instFw.first + instFw.second;
+								seedsTriedMS[mate * 2 + 1] = instRc.first + instRc.second;
+								// Align seeds
+								al.searchAllSeeds(
+									*seeds[mate],     // search seeds
+									&ebwtFw,          // BWT index
+									ebwtBw,           // BWT' index
+									*rds[mate],       // read
+									sc,               // scoring scheme
+									ca,               // alignment cache
+									shs[mate],        // store seed hits here
+									sdm,              // metrics
+									prm);             // per-read metrics
+								assert(shs[mate].repOk(&ca.current()));
+								if(shs[mate].empty()) {
+									// No seed alignments!  Done with this mate.
+									done[mate] = true;
+									check_second_mate = false;
+								}
 							}
-							// second part of unrolled loop
-							mate = matemap[1];
-							if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
-								// Done with this mate
-								done[mate] = true;
-								//continue;
+						}
+					}
+					// shs contain what we need to know to update our seed
+					// summaries for this seeding
+					if(!shs[0].empty()) {
+						nUniqueSeeds += shs[0].numUniqueSeeds();
+						nUniqueSeedsMS[0] += shs[0].numUniqueSeedsStrand(true);
+						nUniqueSeedsMS[1] += shs[0].numUniqueSeedsStrand(false);
+						nRepeatSeeds += shs[0].numRepeatSeeds();
+						nRepeatSeedsMS[0] += shs[0].numRepeatSeedsStrand(true);
+						nRepeatSeedsMS[1] += shs[0].numRepeatSeedsStrand(false);
+						seedHitTot += shs[0].numElts();
+						seedHitTotMS[0] += shs[0].numEltsFw();
+						seedHitTotMS[1] += shs[0].numEltsRc();
+					}
+					if(!shs[1].empty()) {
+						nUniqueSeeds += shs[1].numUniqueSeeds();
+						nUniqueSeedsMS[2] += shs[1].numUniqueSeedsStrand(true);
+						nUniqueSeedsMS[3] += shs[1].numUniqueSeedsStrand(false);
+						nRepeatSeeds += shs[1].numRepeatSeeds();
+						nRepeatSeedsMS[2] += shs[1].numRepeatSeedsStrand(true);
+						nRepeatSeedsMS[3] += shs[1].numRepeatSeedsStrand(false);
+						seedHitTot += shs[1].numElts();
+						seedHitTotMS[2] += shs[1].numEltsFw();
+						seedHitTotMS[3] += shs[1].numEltsRc();
+					}
+					double uniqFactor[2] = { 0.0f, 0.0f };
+					for(size_t i = 0; i < 2; i++) {
+						if(!shs[i].empty()) {
+							swmSeed.sdsucc++;
+							uniqFactor[i] = shs[i].uniquenessFactor();
+						}
+					}
+					// Possibly reorder the mates
+					matemap[0] = 0; matemap[1] = 1;
+					if(!shs[0].empty() && !shs[1].empty() && uniqFactor[1] > uniqFactor[0]) {
+						// Do the mate with fewer exact hits first
+						// TODO: Consider mates & orientations separately?
+						matemap[0] = 1; matemap[1] = 0;
+					}
+					mate = matemap[0];
+					if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+						// Done with this mate
+						done[mate] = true;
+						//continue;
+					} else {
+						assert(!msinkwrap.maxed());
+						assert(msinkwrap.repOk());
+						//rnd.init(ROTL(rds[mate]->seed, 10));
+						assert(shs[mate].repOk(&ca.current()));
+						if(!seedSumm) {
+							// If there aren't any seed hits...
+							if(shs[mate].empty()) {
+								//continue; // on to the next mate
 							} else {
-								assert(!msinkwrap.maxed());
-								assert(msinkwrap.repOk());
-								//rnd.init(ROTL(rds[mate]->seed, 10));
-								assert(shs[mate].repOk(&ca.current()));
-								if(!seedSumm) {
-									// If there aren't any seed hits...
-									if(shs[mate].empty()) {
-										//continue; // on to the next mate
-									} else {
-										// Sort seed hits into ranks
-										shs[mate].rankSeedHits(rnd, msinkwrap.allHits());
-										int ret = 0;
-										// Paired-end dynamic programming driver
-										ret = sd.extendSeedsPaired(
-											*rds[mate],     // mate to align as anchor
-											*rds[mate ^ 1], // mate to align as opp.
-											mate == 0,      // anchor is mate 1?
-											!filt[mate ^ 1],// opposite mate filtered out?
-											shs[mate],      // seed hits for anchor
-											ebwtFw,         // bowtie index
-											ebwtBw,         // rev bowtie index
-											ref,            // packed reference strings
-											sw,             // dyn prog aligner, anchor
-											osw,            // dyn prog aligner, opposite
-											sc,             // scoring scheme
-											pepol,          // paired-end policy
-											multiseedMms,   // # mms allowed in a seed
-											seedlens[mate], // length of a seed
-											interval[mate], // interval between seeds
-											minsc[mate],    // min score for anchor
-											minsc[mate^1],  // min score for opp.
-											nceil[mate],    // N ceil for anchor
-											nceil[mate^1],  // N ceil for opp.
-											nofw[mate],     // don't align forward read
-											norc[mate],     // don't align revcomp read
-											maxhalf,        // max width on one DP side
-											doUngapped,     // do ungapped alignment
-											mxIter[mate],   // max extend loop iters
-											mxUg[mate],     // max # ungapped extends
-											mxDp[mate],     // max # DPs
-											streak[mate],   // stop after streak of this many end-to-end fails
-											streak[mate],   // stop after streak of this many ungap fails
-											streak[mate],   // stop after streak of this many dp fails
-											mtStreak[mate], // max mate fails per seed range
-											doExtend,       // extend seed hits
-											enable8,        // use 8-bit SSE where possible
-											cminlen,        // checkpoint if read is longer
-											cpow2,          // checkpointer interval, log2
-											doTri,          // triangular mini-fills?
-											tighten,        // -M score tightening mode
-											ca,             // seed alignment cache
-											rnd,            // pseudo-random source
-											wlm,            // group walk left metrics
-											swmSeed,        // DP metrics, seed extend
-											swmMate,        // DP metrics, mate finding
-											prm,            // per-read metrics
-											&msinkwrap,     // for organizing hits
-											true,           // seek mate immediately
-											true,           // report hits once found
-											gReportDiscordant,// look for discordant alns?
-											gReportMixed,   // look for unpaired alns?
-											exhaustive[mate]);
-											// Might be done, but just with this mate
-										assert_gt(ret, 0);
-										MERGE_SW(sw);
-										MERGE_SW(osw);
-										if(ret == EXTEND_EXHAUSTED_CANDIDATES) {
-											// Not done yet
-										} else if(ret == EXTEND_POLICY_FULFILLED) {
-											// Policy is satisfied for this mate at least
-											if(msinkwrap.state().doneWithMate(mate == 0)) {
-												done[mate] = true;
-											}
-											if(msinkwrap.state().doneWithMate(mate == 1)) {
-												done[mate^1] = true;
-											}
-										} else if(ret == EXTEND_PERFECT_SCORE) {
-											// We exhausted this made at least
-											done[mate] = true;
-										} else if(ret == EXTEND_EXCEEDED_HARD_LIMIT) {
-											// We exceeded a per-read limit
-											done[mate] = true;
-										} else if(ret == EXTEND_EXCEEDED_SOFT_LIMIT) {
-											// Not done yet
-										} else {
-											//
-											cerr << "Bad return value: " << ret << endl;
-											throw 1;
-										}
+								// Sort seed hits into ranks
+								shs[mate].rankSeedHits(rnd, msinkwrap.allHits());
+								int ret = 0;
+								// Paired-end dynamic programming driver
+								ret = sd.extendSeedsPaired(
+									*rds[mate],     // mate to align as anchor
+									*rds[mate ^ 1], // mate to align as opp.
+									mate == 0,      // anchor is mate 1?
+									!filt[mate ^ 1],// opposite mate filtered out?
+									shs[mate],      // seed hits for anchor
+									ebwtFw,         // bowtie index
+									ebwtBw,         // rev bowtie index
+									ref,            // packed reference strings
+									sw,             // dyn prog aligner, anchor
+									osw,            // dyn prog aligner, opposite
+									sc,             // scoring scheme
+									pepol,          // paired-end policy
+									multiseedMms,   // # mms allowed in a seed
+									seedlens[mate], // length of a seed
+									interval[mate], // interval between seeds
+									minsc[mate],    // min score for anchor
+									minsc[mate^1],  // min score for opp.
+									nceil[mate],    // N ceil for anchor
+									nceil[mate^1],  // N ceil for opp.
+									nofw[mate],     // don't align forward read
+									norc[mate],     // don't align revcomp read
+									maxhalf,        // max width on one DP side
+									doUngapped,     // do ungapped alignment
+									mxIter[mate],   // max extend loop iters
+									mxUg[mate],     // max # ungapped extends
+									mxDp[mate],     // max # DPs
+									streak[mate],   // stop after streak of this many end-to-end fails
+									streak[mate],   // stop after streak of this many ungap fails
+									streak[mate],   // stop after streak of this many dp fails
+									mtStreak[mate], // max mate fails per seed range
+									doExtend,       // extend seed hits
+									enable8,        // use 8-bit SSE where possible
+									cminlen,        // checkpoint if read is longer
+									cpow2,          // checkpointer interval, log2
+									doTri,          // triangular mini-fills?
+									tighten,        // -M score tightening mode
+									ca,             // seed alignment cache
+									rnd,            // pseudo-random source
+									wlm,            // group walk left metrics
+									swmSeed,        // DP metrics, seed extend
+									swmMate,        // DP metrics, mate finding
+									prm,            // per-read metrics
+									&msinkwrap,     // for organizing hits
+									true,           // seek mate immediately
+									true,           // report hits once found
+									gReportDiscordant,// look for discordant alns?
+									gReportMixed,   // look for unpaired alns?
+									exhaustive[mate]);
+									// Might be done, but just with this mate
+								assert_gt(ret, 0);
+								MERGE_SW(sw);
+								MERGE_SW(osw);
+								if(ret == EXTEND_EXHAUSTED_CANDIDATES) {
+									// break steatement in first loop, probably doesn't fun
+								} else if(ret == EXTEND_POLICY_FULFILLED) {
+									// Policy is satisfied for this mate at least
+									if(msinkwrap.state().doneWithMate(mate == 0)) {
+										done[mate] = true;
 									}
-								} // if(!seedSumm)
+									if(msinkwrap.state().doneWithMate(mate == 1)) {
+										done[mate^1] = true;
+									}
+								} else if(ret == EXTEND_PERFECT_SCORE) {
+									// We exhausted this made at least
+									done[mate] = true;
+								} else if(ret == EXTEND_EXCEEDED_HARD_LIMIT) {
+									// We exceeded a per-read limit
+									done[mate] = true;
+								} else if(ret == EXTEND_EXCEEDED_SOFT_LIMIT) {
+								} else {
+									cerr << "Bad return value: " << ret << endl;
+									throw 1;
+								}
 							}
-						} // for(size_t matei = 0; matei < p(aired ? 2:1); matei++)
+						} // if(!seedSumm)
+					}
+					// second part of unrolled loop
+					mate = matemap[1];
+					if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+						// Done with this mate
+						done[mate] = true;
+						//continue;
+					} else {
+						assert(!msinkwrap.maxed());
+						assert(msinkwrap.repOk());
+						//rnd.init(ROTL(rds[mate]->seed, 10));
+						assert(shs[mate].repOk(&ca.current()));
+						if(!seedSumm) {
+							// If there aren't any seed hits...
+							if(shs[mate].empty()) {
+								//continue; // on to the next mate
+							} else {
+								// Sort seed hits into ranks
+								shs[mate].rankSeedHits(rnd, msinkwrap.allHits());
+								int ret = 0;
+								// Paired-end dynamic programming driver
+								ret = sd.extendSeedsPaired(
+									*rds[mate],     // mate to align as anchor
+									*rds[mate ^ 1], // mate to align as opp.
+									mate == 0,      // anchor is mate 1?
+									!filt[mate ^ 1],// opposite mate filtered out?
+									shs[mate],      // seed hits for anchor
+									ebwtFw,         // bowtie index
+									ebwtBw,         // rev bowtie index
+									ref,            // packed reference strings
+									sw,             // dyn prog aligner, anchor
+									osw,            // dyn prog aligner, opposite
+									sc,             // scoring scheme
+									pepol,          // paired-end policy
+									multiseedMms,   // # mms allowed in a seed
+									seedlens[mate], // length of a seed
+									interval[mate], // interval between seeds
+									minsc[mate],    // min score for anchor
+									minsc[mate^1],  // min score for opp.
+									nceil[mate],    // N ceil for anchor
+									nceil[mate^1],  // N ceil for opp.
+									nofw[mate],     // don't align forward read
+									norc[mate],     // don't align revcomp read
+									maxhalf,        // max width on one DP side
+									doUngapped,     // do ungapped alignment
+									mxIter[mate],   // max extend loop iters
+									mxUg[mate],     // max # ungapped extends
+									mxDp[mate],     // max # DPs
+									streak[mate],   // stop after streak of this many end-to-end fails
+									streak[mate],   // stop after streak of this many ungap fails
+									streak[mate],   // stop after streak of this many dp fails
+									mtStreak[mate], // max mate fails per seed range
+									doExtend,       // extend seed hits
+									enable8,        // use 8-bit SSE where possible
+									cminlen,        // checkpoint if read is longer
+									cpow2,          // checkpointer interval, log2
+									doTri,          // triangular mini-fills?
+									tighten,        // -M score tightening mode
+									ca,             // seed alignment cache
+									rnd,            // pseudo-random source
+									wlm,            // group walk left metrics
+									swmSeed,        // DP metrics, seed extend
+									swmMate,        // DP metrics, mate finding
+									prm,            // per-read metrics
+									&msinkwrap,     // for organizing hits
+									true,           // seek mate immediately
+									true,           // report hits once found
+									gReportDiscordant,// look for discordant alns?
+									gReportMixed,   // look for unpaired alns?
+									exhaustive[mate]);
+									// Might be done, but just with this mate
+								assert_gt(ret, 0);
+								MERGE_SW(sw);
+								MERGE_SW(osw);
+								if(ret == EXTEND_EXHAUSTED_CANDIDATES) {
+									// Not done yet
+								} else if(ret == EXTEND_POLICY_FULFILLED) {
+									// Policy is satisfied for this mate at least
+									if(msinkwrap.state().doneWithMate(mate == 0)) {
+										done[mate] = true;
+									}
+									if(msinkwrap.state().doneWithMate(mate == 1)) {
+										done[mate^1] = true;
+									}
+								} else if(ret == EXTEND_PERFECT_SCORE) {
+									// We exhausted this made at least
+									done[mate] = true;
+								} else if(ret == EXTEND_EXCEEDED_HARD_LIMIT) {
+									// We exceeded a per-read limit
+									done[mate] = true;
+								} else if(ret == EXTEND_EXCEEDED_SOFT_LIMIT) {
+									// Not done yet
+								} else {
+									//
+									cerr << "Bad return value: " << ret << endl;
+									throw 1;
+								}
+							}
+						} // if(!seedSumm)
+					}
 
-						// We don't necessarily have to continue investigating both
-						// mates.  We continue on a mate only if its average
-						// interval length is high (> 1000)
-						//for(size_t mate = 0; mate < 2; mate++) 
-						{
-							if(!done[0] && shs[0].averageHitsPerSeed() < seedBoostThresh) {
-								done[0] = true;
+					// We don't necessarily have to continue investigating both
+					// mates.  We continue on a mate only if its average
+					// interval length is high (> 1000)
+					if(!done[0] && shs[0].averageHitsPerSeed() < seedBoostThresh) {
+						done[0] = true;
+					}
+					if(!done[1] && shs[1].averageHitsPerSeed() < seedBoostThresh) {
+						done[1] = true;
+					}
+
+					// unrolled second reseeding rounds
+					roundi = 1;
+					ca.nextRead(); // Clear cache in preparation for new search
+					shs[0].clearSeeds();
+					shs[1].clearSeeds();
+					assert(shs[0].empty());
+					assert(shs[1].empty());
+					assert(shs[0].repOk(&ca.current()));
+					assert(shs[1].repOk(&ca.current()));
+					// seed initiation and search
+
+					// reset for loop again (unrolled)
+					check_second_mate = true;
+					mate = matemap[0];
+					if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+						// Done with this mate
+						done[mate] = true;
+						//continue;
+					} else if(roundi >= nrounds[mate] || interval[mate] <= (int)roundi) {
+						// Not doing this round for this mate
+						// or...
+						// Figure out the seed offset
+						// Can't do this round, seeds already packed as
+						// tight as possible
+						//continue;
+					} else {
+						size_t offset = (interval[mate] * roundi) / nrounds[mate];
+						assert(roundi == 0 || offset > 0);
+						assert(!msinkwrap.maxed());
+						assert(msinkwrap.repOk());
+						//rnd.init(ROTL(rds[mate]->seed, 10));
+						assert(shs[mate].repOk(&ca.current()));
+						swmSeed.sdatts++;
+						// Set up seeds
+						seeds[mate]->clear();
+						Seed::mmSeeds(
+							multiseedMms,    // max # mms per seed
+							seedlens[mate],  // length of a multiseed seed
+							*seeds[mate],    // seeds
+							gc);             // global constraint
+						// Check whether the offset would drive the first seed
+						// off the end
+						if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
+							//continue;
+						} else {
+							// Instantiate the seeds
+							std::pair<int, int> instFw, instRc;
+							std::pair<int, int> inst = al.instantiateSeeds(
+								*seeds[mate],   // search seeds
+								offset,         // offset to begin extracting
+								interval[mate], // interval between seeds
+								*rds[mate],     // read to align
+								sc,             // scoring scheme
+								nofw[mate],     // don't align forward read
+								norc[mate],     // don't align revcomp read
+								ca,             // holds some seed hits from previous reads
+								shs[mate],      // holds all the seed hits
+								sdm,            // metrics
+								instFw,
+								instRc);
+							assert(shs[mate].repOk(&ca.current()));
+							if(inst.first + inst.second == 0) {
+								// No seed hits!  Done with this mate.
+								assert(shs[mate].empty());
+								done[mate] = true;
+								check_second_mate = false;
 							}
-							if(!done[1] && shs[1].averageHitsPerSeed() < seedBoostThresh) {
-								done[1] = true;
+							seedsTried += (inst.first + inst.second);
+							seedsTriedMS[mate * 2 + 0] = instFw.first + instFw.second;
+							seedsTriedMS[mate * 2 + 1] = instRc.first + instRc.second;
+							// Align seeds
+							al.searchAllSeeds(
+								*seeds[mate],     // search seeds
+								&ebwtFw,          // BWT index
+								ebwtBw,           // BWT' index
+								*rds[mate],       // read
+								sc,               // scoring scheme
+								ca,               // alignment cache
+								shs[mate],        // store seed hits here
+								sdm,              // metrics
+								prm);             // per-read metrics
+							assert(shs[mate].repOk(&ca.current()));
+							if(shs[mate].empty()) {
+								// No seed alignments!  Done with this mate.
+								done[mate] = true;
+								check_second_mate = false;
 							}
 						}
-					} // end loop over reseeding rounds
+					}
+
+					mate = matemap[1];
+					if (check_second_mate) {
+						if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+							// Done with this mate
+							done[mate] = true;
+							//continue;
+						} else if(roundi >= nrounds[mate] || interval[mate] <= (int)roundi) {
+							// Not doing this round for this mate
+							// or...
+							// Figure out the seed offset
+							// Can't do this round, seeds already packed as
+							// tight as possible
+							//continue;
+						} else {
+							size_t offset = (interval[mate] * roundi) / nrounds[mate];
+							assert(roundi == 0 || offset > 0);
+							assert(!msinkwrap.maxed());
+							assert(msinkwrap.repOk());
+							//rnd.init(ROTL(rds[mate]->seed, 10));
+							assert(shs[mate].repOk(&ca.current()));
+							swmSeed.sdatts++;
+							// Set up seeds
+							seeds[mate]->clear();
+							Seed::mmSeeds(
+								multiseedMms,    // max # mms per seed
+								seedlens[mate],  // length of a multiseed seed
+								*seeds[mate],    // seeds
+								gc);             // global constraint
+							// Check whether the offset would drive the first seed
+							// off the end
+							if(offset > 0 && (*seeds[mate])[0].len + offset > rds[mate]->length()) {
+								//continue;
+							} else {
+								// Instantiate the seeds
+								std::pair<int, int> instFw, instRc;
+								std::pair<int, int> inst = al.instantiateSeeds(
+									*seeds[mate],   // search seeds
+									offset,         // offset to begin extracting
+									interval[mate], // interval between seeds
+									*rds[mate],     // read to align
+									sc,             // scoring scheme
+									nofw[mate],     // don't align forward read
+									norc[mate],     // don't align revcomp read
+									ca,             // holds some seed hits from previous reads
+									shs[mate],      // holds all the seed hits
+									sdm,            // metrics
+									instFw,
+									instRc);
+								assert(shs[mate].repOk(&ca.current()));
+								if(inst.first + inst.second == 0) {
+									// No seed hits!  Done with this mate.
+									assert(shs[mate].empty());
+									done[mate] = true;
+									check_second_mate = false;
+								}
+								seedsTried += (inst.first + inst.second);
+								seedsTriedMS[mate * 2 + 0] = instFw.first + instFw.second;
+								seedsTriedMS[mate * 2 + 1] = instRc.first + instRc.second;
+								// Align seeds
+								al.searchAllSeeds(
+									*seeds[mate],     // search seeds
+									&ebwtFw,          // BWT index
+									ebwtBw,           // BWT' index
+									*rds[mate],       // read
+									sc,               // scoring scheme
+									ca,               // alignment cache
+									shs[mate],        // store seed hits here
+									sdm,              // metrics
+									prm);             // per-read metrics
+								assert(shs[mate].repOk(&ca.current()));
+								if(shs[mate].empty()) {
+									// No seed alignments!  Done with this mate.
+									done[mate] = true;
+									check_second_mate = false;
+								}
+							}
+						}
+					}
+					// shs contain what we need to know to update our seed
+					// summaries for this seeding
+					if(!shs[0].empty()) {
+						nUniqueSeeds += shs[0].numUniqueSeeds();
+						nUniqueSeedsMS[0] += shs[0].numUniqueSeedsStrand(true);
+						nUniqueSeedsMS[1] += shs[0].numUniqueSeedsStrand(false);
+						nRepeatSeeds += shs[0].numRepeatSeeds();
+						nRepeatSeedsMS[0] += shs[0].numRepeatSeedsStrand(true);
+						nRepeatSeedsMS[1] += shs[0].numRepeatSeedsStrand(false);
+						seedHitTot += shs[0].numElts();
+						seedHitTotMS[0] += shs[0].numEltsFw();
+						seedHitTotMS[1] += shs[0].numEltsRc();
+					}
+					if(!shs[1].empty()) {
+						nUniqueSeeds += shs[1].numUniqueSeeds();
+						nUniqueSeedsMS[2] += shs[1].numUniqueSeedsStrand(true);
+						nUniqueSeedsMS[3] += shs[1].numUniqueSeedsStrand(false);
+						nRepeatSeeds += shs[1].numRepeatSeeds();
+						nRepeatSeedsMS[2] += shs[1].numRepeatSeedsStrand(true);
+						nRepeatSeedsMS[3] += shs[1].numRepeatSeedsStrand(false);
+						seedHitTot += shs[1].numElts();
+						seedHitTotMS[2] += shs[1].numEltsFw();
+						seedHitTotMS[3] += shs[1].numEltsRc();
+					}
+					uniqFactor[0] = 0.0f;
+					uniqFactor[1] = 0.0f;
+					for(size_t i = 0; i < 2; i++) {
+						if(!shs[i].empty()) {
+							swmSeed.sdsucc++;
+							uniqFactor[i] = shs[i].uniquenessFactor();
+						}
+					}
+					// Possibly reorder the mates
+					matemap[0] = 0; matemap[1] = 1;
+					if(!shs[0].empty() && !shs[1].empty() && uniqFactor[1] > uniqFactor[0]) {
+						// Do the mate with fewer exact hits first
+						// TODO: Consider mates & orientations separately?
+						matemap[0] = 1; matemap[1] = 0;
+					}
+					mate = matemap[0];
+					if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+						// Done with this mate
+						done[mate] = true;
+						//continue;
+					} else {
+						assert(!msinkwrap.maxed());
+						assert(msinkwrap.repOk());
+						//rnd.init(ROTL(rds[mate]->seed, 10));
+						assert(shs[mate].repOk(&ca.current()));
+						if(!seedSumm) {
+							// If there aren't any seed hits...
+							if(shs[mate].empty()) {
+								//continue; // on to the next mate
+							} else {
+								// Sort seed hits into ranks
+								shs[mate].rankSeedHits(rnd, msinkwrap.allHits());
+								int ret = 0;
+								// Paired-end dynamic programming driver
+								ret = sd.extendSeedsPaired(
+									*rds[mate],     // mate to align as anchor
+									*rds[mate ^ 1], // mate to align as opp.
+									mate == 0,      // anchor is mate 1?
+									!filt[mate ^ 1],// opposite mate filtered out?
+									shs[mate],      // seed hits for anchor
+									ebwtFw,         // bowtie index
+									ebwtBw,         // rev bowtie index
+									ref,            // packed reference strings
+									sw,             // dyn prog aligner, anchor
+									osw,            // dyn prog aligner, opposite
+									sc,             // scoring scheme
+									pepol,          // paired-end policy
+									multiseedMms,   // # mms allowed in a seed
+									seedlens[mate], // length of a seed
+									interval[mate], // interval between seeds
+									minsc[mate],    // min score for anchor
+									minsc[mate^1],  // min score for opp.
+									nceil[mate],    // N ceil for anchor
+									nceil[mate^1],  // N ceil for opp.
+									nofw[mate],     // don't align forward read
+									norc[mate],     // don't align revcomp read
+									maxhalf,        // max width on one DP side
+									doUngapped,     // do ungapped alignment
+									mxIter[mate],   // max extend loop iters
+									mxUg[mate],     // max # ungapped extends
+									mxDp[mate],     // max # DPs
+									streak[mate],   // stop after streak of this many end-to-end fails
+									streak[mate],   // stop after streak of this many ungap fails
+									streak[mate],   // stop after streak of this many dp fails
+									mtStreak[mate], // max mate fails per seed range
+									doExtend,       // extend seed hits
+									enable8,        // use 8-bit SSE where possible
+									cminlen,        // checkpoint if read is longer
+									cpow2,          // checkpointer interval, log2
+									doTri,          // triangular mini-fills?
+									tighten,        // -M score tightening mode
+									ca,             // seed alignment cache
+									rnd,            // pseudo-random source
+									wlm,            // group walk left metrics
+									swmSeed,        // DP metrics, seed extend
+									swmMate,        // DP metrics, mate finding
+									prm,            // per-read metrics
+									&msinkwrap,     // for organizing hits
+									true,           // seek mate immediately
+									true,           // report hits once found
+									gReportDiscordant,// look for discordant alns?
+									gReportMixed,   // look for unpaired alns?
+									exhaustive[mate]);
+									// Might be done, but just with this mate
+								assert_gt(ret, 0);
+								MERGE_SW(sw);
+								MERGE_SW(osw);
+								if(ret == EXTEND_EXHAUSTED_CANDIDATES) {
+									// Not done yet
+								} else if(ret == EXTEND_POLICY_FULFILLED) {
+									// Policy is satisfied for this mate at least
+									if(msinkwrap.state().doneWithMate(mate == 0)) {
+										done[mate] = true;
+									}
+									if(msinkwrap.state().doneWithMate(mate == 1)) {
+										done[mate^1] = true;
+									}
+								} else if(ret == EXTEND_PERFECT_SCORE) {
+									// We exhausted this made at least
+									done[mate] = true;
+								} else if(ret == EXTEND_EXCEEDED_HARD_LIMIT) {
+									// We exceeded a per-read limit
+									done[mate] = true;
+								} else if(ret == EXTEND_EXCEEDED_SOFT_LIMIT) {
+									// Not done yet
+								} else {
+									//
+									cerr << "Bad return value: " << ret << endl;
+									throw 1;
+								}
+							}
+						} // if(!seedSumm)
+					}
+					// second part of unrolled loop
+					mate = matemap[1];
+					if(done[mate] || msinkwrap.state().doneWithMate(mate == 0)) {
+						// Done with this mate
+						done[mate] = true;
+						//continue;
+					} else {
+						assert(!msinkwrap.maxed());
+						assert(msinkwrap.repOk());
+						//rnd.init(ROTL(rds[mate]->seed, 10));
+						assert(shs[mate].repOk(&ca.current()));
+						if(!seedSumm) {
+							// If there aren't any seed hits...
+							if(shs[mate].empty()) {
+								//continue; // on to the next mate
+							} else {
+								// Sort seed hits into ranks
+								shs[mate].rankSeedHits(rnd, msinkwrap.allHits());
+								int ret = 0;
+								// Paired-end dynamic programming driver
+								ret = sd.extendSeedsPaired(
+									*rds[mate],     // mate to align as anchor
+									*rds[mate ^ 1], // mate to align as opp.
+									mate == 0,      // anchor is mate 1?
+									!filt[mate ^ 1],// opposite mate filtered out?
+									shs[mate],      // seed hits for anchor
+									ebwtFw,         // bowtie index
+									ebwtBw,         // rev bowtie index
+									ref,            // packed reference strings
+									sw,             // dyn prog aligner, anchor
+									osw,            // dyn prog aligner, opposite
+									sc,             // scoring scheme
+									pepol,          // paired-end policy
+									multiseedMms,   // # mms allowed in a seed
+									seedlens[mate], // length of a seed
+									interval[mate], // interval between seeds
+									minsc[mate],    // min score for anchor
+									minsc[mate^1],  // min score for opp.
+									nceil[mate],    // N ceil for anchor
+									nceil[mate^1],  // N ceil for opp.
+									nofw[mate],     // don't align forward read
+									norc[mate],     // don't align revcomp read
+									maxhalf,        // max width on one DP side
+									doUngapped,     // do ungapped alignment
+									mxIter[mate],   // max extend loop iters
+									mxUg[mate],     // max # ungapped extends
+									mxDp[mate],     // max # DPs
+									streak[mate],   // stop after streak of this many end-to-end fails
+									streak[mate],   // stop after streak of this many ungap fails
+									streak[mate],   // stop after streak of this many dp fails
+									mtStreak[mate], // max mate fails per seed range
+									doExtend,       // extend seed hits
+									enable8,        // use 8-bit SSE where possible
+									cminlen,        // checkpoint if read is longer
+									cpow2,          // checkpointer interval, log2
+									doTri,          // triangular mini-fills?
+									tighten,        // -M score tightening mode
+									ca,             // seed alignment cache
+									rnd,            // pseudo-random source
+									wlm,            // group walk left metrics
+									swmSeed,        // DP metrics, seed extend
+									swmMate,        // DP metrics, mate finding
+									prm,            // per-read metrics
+									&msinkwrap,     // for organizing hits
+									true,           // seek mate immediately
+									true,           // report hits once found
+									gReportDiscordant,// look for discordant alns?
+									gReportMixed,   // look for unpaired alns?
+									exhaustive[mate]);
+									// Might be done, but just with this mate
+								assert_gt(ret, 0);
+								MERGE_SW(sw);
+								MERGE_SW(osw);
+								if(ret == EXTEND_EXHAUSTED_CANDIDATES) {
+									// Not done yet
+								} else if(ret == EXTEND_POLICY_FULFILLED) {
+									// Policy is satisfied for this mate at least
+									if(msinkwrap.state().doneWithMate(mate == 0)) {
+										done[mate] = true;
+									}
+									if(msinkwrap.state().doneWithMate(mate == 1)) {
+										done[mate^1] = true;
+									}
+								} else if(ret == EXTEND_PERFECT_SCORE) {
+									// We exhausted this made at least
+									done[mate] = true;
+								} else if(ret == EXTEND_EXCEEDED_HARD_LIMIT) {
+									// We exceeded a per-read limit
+									done[mate] = true;
+								} else if(ret == EXTEND_EXCEEDED_SOFT_LIMIT) {
+									// Not done yet
+								} else {
+									//
+									cerr << "Bad return value: " << ret << endl;
+									throw 1;
+								}
+							}
+						} // if(!seedSumm)
+					}
+
+					// We don't necessarily have to continue investigating both
+					// mates.  We continue on a mate only if its average
+					// interval length is high (> 1000)
+					if(!done[0] && shs[0].averageHitsPerSeed() < seedBoostThresh) {
+						done[0] = true;
+					}
+					if(!done[1] && shs[1].averageHitsPerSeed() < seedBoostThresh) {
+						done[1] = true;
+					}
 					if(seedsTried > 0) {
 						prm.seedPctUnique = (float)nUniqueSeeds / seedsTried;
 						prm.seedPctRep = (float)nRepeatSeeds / seedsTried;
@@ -4891,22 +4928,19 @@ static void multiseedSearchWorkerPaired(void *vp) {
 						}
 					}
 					size_t totnucs = 0;
-					//for(size_t mate = 0; mate < 2; mate++) {
-					{
-						if(filt[0]) {
-							size_t len = rdlens[0];
-							if(!nofw[0] && !norc[0]) {
-								len *= 2;
-							}
-							totnucs += len;
+					if(filt[0]) {
+						size_t len = rdlens[0];
+						if(!nofw[0] && !norc[0]) {
+							len *= 2;
 						}
-						if(filt[1]) {
-							size_t len = rdlens[1];
-							if(!nofw[1] && !norc[1]) {
-								len *= 2;
-							}
-							totnucs += len;
+						totnucs += len;
+					}
+					if(filt[1]) {
+						size_t len = rdlens[1];
+						if(!nofw[1] && !norc[1]) {
+							len *= 2;
 						}
+						totnucs += len;
 					}
 					prm.seedsPerNuc = totnucs > 0 ? ((float)seedsTried / totnucs) : -1;
 					for(int i = 0; i < 4; i++) {
