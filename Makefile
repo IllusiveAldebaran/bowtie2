@@ -134,12 +134,6 @@ ifdef BOWTIE_SHARED_MEM
   SHMEM_DEF := -DBOWTIE_SHARED_MEM
 endif
 
-PAIRED_DEF :=
-
-ifdef PAIRED
-  PAIRED_DEF := -DPAIRED
-endif
-
 PTHREAD_PKG :=
 PTHREAD_LIB :=
 
@@ -327,8 +321,12 @@ DEFS := -fno-strict-aliasing \
   $(FILE_FLAGS) \
   $(PREF_DEF) \
   $(MM_DEF) \
-  $(SHMEM_DEF) \
-  $(PAIRED_DEF)
+  $(SHMEM_DEF) #\
+  #$(PAIRED_DEF)
+
+ifdef PAIRED
+  DEFS += -DPAIRED
+endif
 
 # set compiler flags for all sanitized builds
 ifdef BOWTIE2_BIN_LIST_SAN
